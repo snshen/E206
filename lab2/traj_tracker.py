@@ -65,7 +65,7 @@ class TrajectoryTracker():
           traj_tracked (boolean): True if traj has been tracked.
     """
     # MODULAR: for point tracking
-    # print(controller.point_tracked, self.current_point_to_track, len(self.traj))
+    # print(controller.poiPointTrackernt_tracked, self.current_point_to_track, len(self.traj))
     if controller.point_tracked and self.current_point_to_track == len(self.traj) - 1:
       self.traj_tracked = True
     elif controller.point_tracked:
@@ -78,7 +78,7 @@ class PointTracker():
   """ A class to determine actions (motor control signals) for driving a robot to a position.
   """
   def __init__(self):
-    pass
+    self.point_tracked = False
 
   def get_dummy_action(self, x_des, x):
     """ Return a dummy action for now

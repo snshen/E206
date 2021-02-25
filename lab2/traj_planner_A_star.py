@@ -7,7 +7,7 @@ import math
 import dubins
 import random
 import matplotlib.pyplot as plt
-from traj_planner_utils import construct_dubins_traj, collision_found
+from traj_planner_utils import *
 import numpy as np
 
 class Node():
@@ -28,7 +28,7 @@ class Node():
   def euclidean_distance_to_state(self, state):
     return math.sqrt( (self.state[1] - state[1])**2 + (self.state[2] - state[2])**2 )
 
-class A_Star_Planner():
+class A_Star_Planner:
 
   DIST_TO_GOAL_THRESHOLD = 0.5 #m
   CHILDREN_DELTAS = [-0.5, -0.25, 0.0, 0.25, 0.5]
@@ -59,55 +59,80 @@ class A_Star_Planner():
     self.fringe.append(initial_node)
 
     # loop to find goal
-    # while not self.goal_found:
-    # TODO????
-
-    return []
+    while True:
+      # get the top node, then expand it
+      current_node = self.get_best_node_on_fringe()
+      print(f'x: {current_node.state[1]}, y: {current_node.state[2]}, fcost: {current_node.f_cost}, hcost: {current_node.h_cost}')
+      # check to see if it connects to the goal
+      traj, traj_distance = construct_dubins_traj(current_node.state, self.desired_state)
+      if not collision_found(traj, self.objects, self.walls):
+        # if it connects, yay! build and return the traj.
+        goal_node = self.generate_goal_node(current_node, self.desired_state)
+        return self.build_traj(goal_node)
+      else:
+        # if it doesn't connect, add the children and keep going
+        children_list = self.get_children(current_node)
+        for child in children_list:
+          self.add_to_fringe(child)
 
   def add_to_fringe(self, node):
+    """
+    Takes a node and adds it to the fringe (unexplored nodes)
+    """
 
-    # if the node's cost is higher than everything else, just add it
-    if node.f_cost > self.fringe[-1].f_cost:
+    if not self.fringe:
+      # if there's nothing in the fringe, add the node
+      self.fringe.append(node)
+    elif node.f_cost > self.fringe[-1].f_cost:
+      # if the node's cost is higher than everything else, just add it
       self.fringe.append(node)
     else:
       ind = 0
       while ind < len(self.fringe):
         if node.f_cost < self.fringe[ind].f_cost:
           self.fringe.insert(ind, node)
-          break
+          return
+        ind += 1
     pass
 
   def get_best_node_on_fringe(self):
     return self.fringe.pop(0)
 
-  # TODO
-  def get_children(self, node_to_expand):
+  def get_children(self, node_to_expand: Node):
+
+    parent_time = node_to_expand.state[0]
+    parent_x = node_to_expand.state[1]
+    parent_y = node_to_expand.state[2]
+    parent_theta = node_to_expand.state[3]
+
     children_list = []
+    for delta in A_Star_Planner.CHILDREN_DELTAS:
 
-    # Add code here.
+      # calculate state for child
+      child_time = parent_time + A_Star_Planner.EDGE_TIME
+      child_x = parent_x + (A_Star_Planner.DISTANCE_DELTA * math.cos(parent_theta + delta))
+      child_y = parent_y + (A_Star_Planner.DISTANCE_DELTA * math.sin(parent_theta + delta))
+      child_theta = wrap_to_pi(parent_theta + (2 * delta))
+      # create child node with given state
+      child = self.create_node([child_time, child_x, child_y, child_theta], node_to_expand)
 
-
+      children_list.append(child)
     return children_list
 
-  """
-   Another recommendation is to calculate a node's connection to the desired state with a generate_goal_node function 
-   that calculates a dubins traj between a node and the desired state. If this traj is collision free, the goal node 
-   should be created and returned so that the full trajectory can be built and returned. Note that you should only 
-   check for connections with a goal AFTER popping a node from the fringe (to ensure a form of optimality).
-  """
-  def generate_goal_node(self, node: Node, desired_state: Node):
+  def generate_goal_node(self, node: Node, desired_state):
+    """
+     Another recommendation is to calculate a node's connection to the desired state with a generate_goal_node function
+     that calculates a dubins traj between a node and the desired state. If this traj is collision free, the goal node
+     should be created and returned so that the full trajectory can be built and returned. Note that you should only
+     check for connections with a goal AFTER popping a node from the fringe (to ensure a form of optimality).
+    """
+    return self.create_node(desired_state, node)
 
-    # check to make sure there's no collision
-    # if so, make the goal node
-    if not self.collision_found(node, desired_state):
-      return self.create_node(desired_state, node)
-    else:
-      return
 
   def create_node(self, state, parent_node: Node):
 
     # c(parent,n)
-    c = parent_node.manhattan_distance_to_state(state)
+    c = self.calculate_edge_distance(state, parent_node)
     # g(n) is g(parent) + c(parent,n)
     g_cost = parent_node.g_cost + c
     # h is calculated as normal
@@ -124,13 +149,17 @@ class A_Star_Planner():
 
     return Node(state, None, g_cost, h_cost)
 
-  # TODO
-  # WHY DO WE NEED THIS
-  def calculate_edge_distance(self, state, parent_node):
+  def calculate_edge_distance(self, state, parent_node: Node):
+    """
+    Determine the traj, traj_distance for an edge,
+    then check for collisions on traj with the collision_found function.
+    If one is found return a LARGE_NUMBER.
+    """
+    traj, traj_distance = construct_dubins_traj(parent_node.state, state)
+    if not collision_found(traj, self.objects, self.walls):
+      return parent_node.manhattan_distance_to_state(state)
 
-    # Add code here.
-
-    return LARGE_NUMBER
+    return A_Star_Planner.LARGE_NUMBER
 
   def estimate_cost_to_goal(self, state):
     return math.sqrt( (self.desired_state[1] - state[1])**2 + (self.desired_state[2] - state[2])**2 )
@@ -169,7 +198,7 @@ class A_Star_Planner():
     return collision_found(traj, self.objects, self.walls)
 
 if __name__ == '__main__':
-  for i in range(0, 5):
+  for i in range(0, 2):
     maxR = 10
     tp0 = [0, -8, -8, 0]
     tp1 = [300, random.uniform(-maxR+1, maxR-1), random.uniform(-maxR+1, maxR-1), 0]
