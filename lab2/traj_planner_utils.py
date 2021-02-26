@@ -109,6 +109,7 @@ def plot_traj(traj_desired, traj_actual, objects, walls):
     axis_array[0].set_ylabel('Y (m)')
     axis_array[0].axis('equal')
 
+    print("ts des:", time_stamp_desired)
     axis_array[1].plot(time_stamp_desired, x_desired, 'b')
     axis_array[1].plot(time_stamp_desired, y_desired, 'b--')
     axis_array[1].plot(time_stamp_desired, theta_desired, 'b-.')

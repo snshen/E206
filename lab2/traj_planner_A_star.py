@@ -33,7 +33,7 @@ class A_Star_Planner:
   DIST_TO_GOAL_THRESHOLD = 0.5 #m
   CHILDREN_DELTAS = [-0.5, -0.25, 0.0, 0.25, 0.5]
   DISTANCE_DELTA = 1.5 #m
-  EDGE_TIME = 10 #s
+  EDGE_TIME = 2 #s
   LARGE_NUMBER = 9999999
 
 

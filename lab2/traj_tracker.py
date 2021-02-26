@@ -3,7 +3,7 @@ import math
 import random
 from traj_planner_utils import *
 
-TIME_STEP_SIZE = 0.01 #s
+TIME_STEP_SIZE = 0.05 #s
 LOOK_AHEAD_TIME = 1.0 #s
 MIN_DIST_TO_POINT = 0.1 #m
 MIN_ANG_TO_POINT = 0.10 #rad
@@ -94,9 +94,14 @@ class PointTracker():
     """
     L = 0.2 # distance between wheels / 2
 
-    k_p = 10  # > 0, 5, 50
-    k_a = 11  # > k_p, 15, 60
-    k_b = -5  # < 0
+    # k_p = 10  # > 0, 5, 50
+    # k_a = 11  # > k_p, 15, 60
+    # k_b = -5  # < 0
+
+    k_p = 30  # > 0, 5, 50
+    k_a = 50  # > k_p, 15, 60
+    k_b = -10 # < 0
+
 
     # various variables...
     del_x = desired_state[1] - current_state[1]

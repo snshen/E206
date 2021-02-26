@@ -3,20 +3,21 @@ import gym_fetch
 import time
 import math
 import random
+
+from traj_planner_A_star import A_Star_Planner
 from traj_planner_utils import *
 from traj_tracker import *
+import numpy as np
 
     
 def main():
   # Create a motion planning problem and solve it
   current_state, desired_state, objects, walls = create_motion_planning_problem()
-  desired_traj = construct_dubins_traj(current_state, desired_state)
-  # desired_traj = [desired_state]
-  # desired_traj = [[0, 2, 0, 0], [0, 0, 0, 0], [0, 2, 2, 0], [0, 0, 0, 0],
-  #                 [0, 0, 2, math.pi / 2], [0, 0, 0, 0], [0, -2, 2, 0], [0, 0, 0, 0],
-  #                 [0, -2, 0, 0], [0, 0, 0, 0], [0, -2, -2, 0], [0, 0, 0, 0],
-  #                 [0, 0, -2, -math.pi / 2], [0, 0, 0, 0], [0, 2, -2, 0]]
-  
+  planner = A_Star_Planner()
+  desired_traj = planner.construct_traj(current_state, desired_state, objects, walls)
+  print(desired_traj[:][0])
+  # print(len(desired_traj[0]))
+
   # Construct an environment
   env = gym.make("fetch-v0") # <-- this we need to create
   env.set_parameters(TIME_STEP_SIZE, objects)
@@ -48,7 +49,7 @@ def main():
   time.sleep(2)
   plot_traj(desired_traj, actual_traj, objects, walls)
 
-  # np.save('data/2_2.npy', actual_traj)
+  np.save('data/des_traj.npy', desired_traj)
 
   env.close()
   
@@ -57,7 +58,7 @@ def create_motion_planning_problem():
   desired_state = [20, 5.0, 2.0, 0]
   maxR = 8
   walls = [[-maxR, maxR, maxR, maxR, 2*maxR], [maxR, maxR, maxR, -maxR, 2*maxR], [maxR, -maxR, -maxR, -maxR, 2*maxR], [-maxR, -maxR, -maxR, maxR, 2*maxR] ]
-  objects = [[4, 0, 1.0], [-2, -3, 1.5]]
+  objects = [[4, 0, 1.0], [-2, -3, 1.5], [2, 1.5, 1.5]]
   
   return current_state, desired_state, objects, walls
 
