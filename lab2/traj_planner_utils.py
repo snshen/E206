@@ -29,7 +29,7 @@ def wrap_to_pi(angle):
     return angle
 
 
-def construct_dubins_traj(traj_point_0, traj_point_1):
+def construct_dubins_traj(traj_point_0, traj_point_1, parent_time = None):
     """ Construc a trajectory in the X-Y space and in the time-X,Y,Theta space.
         Arguments:
           traj_point_0 (list of floats): The trajectory's first trajectory point with time, X, Y, Theta (s, m, m, rad).
@@ -53,8 +53,12 @@ def construct_dubins_traj(traj_point_0, traj_point_1):
         traj_point = [i * time_step_size, 0, 0, 0]
         traj_point[1:] = configuration
         traj_point[-1] = wrap_to_pi(traj_point[-1])
+        if parent_time is not None:
+            traj_point[0] += parent_time
         traj.append(traj_point)
         traj_distance += DISTANCE_STEP_SIZE
+    
+
 
     return traj, traj_distance
 
@@ -109,7 +113,7 @@ def plot_traj(traj_desired, traj_actual, objects, walls):
     axis_array[0].set_ylabel('Y (m)')
     axis_array[0].axis('equal')
 
-    print("ts des:", time_stamp_desired)
+    # print("ts des:", time_stamp_desired)
     axis_array[1].plot(time_stamp_desired, x_desired, 'b')
     axis_array[1].plot(time_stamp_desired, y_desired, 'b--')
     axis_array[1].plot(time_stamp_desired, theta_desired, 'b-.')

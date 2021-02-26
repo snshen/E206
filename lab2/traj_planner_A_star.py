@@ -62,7 +62,7 @@ class A_Star_Planner:
     while True:
       # get the top node, then expand it
       current_node = self.get_best_node_on_fringe()
-      print(f'x: {current_node.state[1]}, y: {current_node.state[2]}, fcost: {current_node.f_cost}, hcost: {current_node.h_cost}')
+      print(f'x: {current_node.state[1]}, y: {current_node.state[2]}, desired state: {desired_state}, fcost: {current_node.f_cost}, hcost: {current_node.h_cost}')
       # check to see if it connects to the goal
       traj, traj_distance = construct_dubins_traj(current_node.state, self.desired_state)
       if not collision_found(traj, self.objects, self.walls):
@@ -173,15 +173,18 @@ class A_Star_Planner:
       node_to_add = node_to_add.parent_node
 
     traj = []
+    parent_time = None
     for i in range(1,len(node_list)):
       node_A = node_list[i-1]
       node_B = node_list[i]
       traj_point_0 = node_A.state
       traj_point_1 = node_B.state
       traj_point_1[3] = math.atan2(traj_point_1[2]-traj_point_0[2], traj_point_1[1]-traj_point_0[1])
-      edge_traj, edge_traj_distance = construct_dubins_traj(traj_point_0, traj_point_1)
+      if len(traj) > 0:
+        parent_time = traj[-1][0]
+      edge_traj, edge_traj_distance = construct_dubins_traj(traj_point_0, traj_point_1, parent_time = parent_time)
       traj = traj + edge_traj
-
+    # print("TEST:", edge_traj)
     return traj
 
   def collision_found(self, node_1, node_2):
