@@ -7,7 +7,7 @@ import math
 import dubins
 import random
 import matplotlib.pyplot as plt
-from traj_planner_utils import *
+from traj_planner_utils import plot_traj, construct_dubins_traj, wrap_to_pi, collision_found
 import numpy as np
 import time
 
@@ -16,7 +16,7 @@ class Node():
   def __init__(self, state, parent_node, edge_distance):
     self.state = state
     self.parent_node = parent_node
-    self.edge_distance = edge_distance
+    self.edge_distance = edge_distance # path length from the parent node to this node
     
   def manhattan_distance_to_node(self, node):
     return abs(self.state[1] - node.state[1]) + abs(self.state[2] - node.state[2])
@@ -53,14 +53,26 @@ class Expansive_Planner():
           traj (list of lists): A list of trajectory points with time, X, Y, Theta (s, m, m, rad).
           traj_cost (float): The path length (m).
     """
-    self.tree = []
+    self.tree = [] # A LIST OF NODES
     self.desired_state = desired_state
+    self.desired_node = Node(desired_state, None, 0)
     self.objects = objects
     self.walls = walls
-    
-    # Add code here to make a traj #
-      
-    return [], self.LARGE_NUMBER
+
+    # initialize run
+    initial_node = Node(initial_state, None, 0)
+    self.tree.append(initial_node)
+
+    # loop to find goal
+    while True:
+      current_node = self.sample_random_node()
+      new_node = self.generate_random_node(current_node)
+      if not self.collision_found(current_node, new_node):
+        self.add_to_tree(new_node)
+        if not self.collision_found(new_node, self.desired_node):
+          goal_node = self.generate_goal_node(new_node, self.desired_state)
+          return self.build_traj(goal_node)
+
     
   def construct_optimized_traj(self, initial_state, desired_state, objects, walls):
     """ Construct the best trajectory possible within a limited time budget.
@@ -74,9 +86,17 @@ class Expansive_Planner():
     start_time = time.perf_counter()
     best_traj = []
     best_traj_cost = self.LARGE_NUMBER
+    curr_time = start_time
     
-    # Add code here to make many trajs within a time budget and return the best traj #
-    # You will want to call construct_traj #
+    # Add code here to make many trajs within a time budget and return the best traj
+    # You will want to call construct_traj
+    # while (curr_time - start_time) < self.PLAN_TIME_BUDGET:
+    for i in range(50):
+      traj, traj_cost = self.construct_traj(initial_state, desired_state, objects, walls)
+      if traj_cost < best_traj_cost:
+        best_traj = traj
+        best_traj_cost = traj_cost
+      curr_time = time.perf_counter()
       
     return best_traj, best_traj_cost
     
@@ -87,17 +107,17 @@ class Expansive_Planner():
     """
     
     # Add code here to add a node to the tree#
-    pass
+    self.tree.append(node)
+    return
     
   def sample_random_node(self):
     """ Randomly select a node from the tree and return it.
         Returns:
           node (Node): A randomly selected node from the tree.
     """
-    
-    # Add code here to return a random node from the tree #
-    
-    return None
+
+    # TODO: optimize with weights
+    return random.choice(self.tree)
     
   def generate_random_node(self, node_to_expand):
     """ Create a new node by expanding from the parent node using.
@@ -108,8 +128,28 @@ class Expansive_Planner():
     """
     
     # Add code here to make a new node #
-    
-    return None
+    parent_time = node_to_expand.state[0]
+    parent_x = node_to_expand.state[1]
+    parent_y = node_to_expand.state[2]
+    parent_theta = node_to_expand.state[3]
+
+    # Generate random distance and angle
+    random_distance = random.uniform(self.MIN_RAND_DISTANCE, self.MAX_RAND_DISTANCE)
+    random_angle = wrap_to_pi(random.uniform(0, 2*math.pi))
+
+    # Calculate state for child
+    child_time = parent_time + random_distance / self.MEAN_EDGE_VELOCITY
+    child_x = parent_x + random_distance * math.cos(parent_theta + random_angle)
+    child_y = parent_y + random_distance * math.sin(parent_theta + random_angle)
+    child_theta = wrap_to_pi(parent_theta + 2 * random_angle)
+    child_state = [child_time, child_x, child_y, child_theta]
+
+    # Create child node with given state
+    child = Node(child_state,
+                 node_to_expand,
+                 self.calculate_edge_distance(child_state, node_to_expand))
+
+    return child
 
   def generate_goal_node(self, node, desired_state):
     """ Create a goal node by connecting from the parent node using.
@@ -118,11 +158,8 @@ class Expansive_Planner():
         Returns:
           goal_node: The newly generated goal node or None if there is not goal connection.
     """
-    
-    # Add code here to make a goal node if possible #
-   
-      
-    return None
+
+    return Node(desired_state, node, self.calculate_edge_distance(desired_state, node))
 
   def calculate_edge_distance(self, state, parent_node):
     """ Calculate the cost of an dubins path edge from a parent node's state to another state.
@@ -154,13 +191,16 @@ class Expansive_Planner():
   
     traj = []
     traj_cost = 0
+    parent_time = None
     for i in range(1,len(node_list)):
       node_A = node_list[i-1]
       node_B = node_list[i]
       traj_point_0 = node_A.state
       traj_point_1 = node_B.state
       traj_point_1[3] = math.atan2(traj_point_1[2]-traj_point_0[2], traj_point_1[1]-traj_point_0[1])
-      edge_traj, edge_traj_distance = construct_dubins_traj(traj_point_0, traj_point_1)
+      if len(traj) > 0:
+        parent_time = traj[-1][0]
+      edge_traj, edge_traj_distance = construct_dubins_traj(traj_point_0, traj_point_1, parent_time)
       traj = traj + edge_traj
       traj_cost = traj_cost + edge_traj_distance
     
@@ -180,7 +220,7 @@ class Expansive_Planner():
     return collision_found(traj, self.objects, self.walls)
 
 if __name__ == '__main__':
-  for i in range(0, 5):
+  for i in range(0, 10):
     maxR = 10
     tp0 = [0, -8, -8, 0]
     tp1 = [300, 8, 8, 0]
@@ -193,6 +233,7 @@ if __name__ == '__main__':
       while (abs(obj[0]-tp0[1]) < 1 and abs(obj[1]-tp0[2]) < 1) or (abs(obj[0]-tp1[1]) < 1 and abs(obj[1]-tp1[2]) < 1):
         obj = [random.uniform(-maxR+1, maxR-1), random.uniform(-maxR+1, maxR-1), 1.0]
       objects.append(obj)
+    # traj, traj_cost = planner.construct_traj(tp0, tp1, objects, walls)
     traj, traj_cost = planner.construct_optimized_traj(tp0, tp1, objects, walls)
     if len(traj) > 0:
       plot_traj(traj, traj, objects, walls)

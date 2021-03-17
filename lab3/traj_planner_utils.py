@@ -11,7 +11,25 @@ DISTANCE_STEP_SIZE = 0.1 #m
 COLLISION_INDEX_STEP_SIZE = 5
 ROBOT_RADIUS = 0.4 #m
 
-def construct_dubins_traj(traj_point_0, traj_point_1):
+
+def wrap_to_pi(angle):
+  """Wrap angle data in radians to [-pi, pi]
+
+  Parameters:
+  angle (float)   -- unwrapped angle
+
+  Returns:
+  angle (float)   -- wrapped angle
+  """
+  while angle >= math.pi:
+    angle -= 2 * math.pi
+
+  while angle <= -math.pi:
+    angle += 2 * math.pi
+  return angle
+
+
+def construct_dubins_traj(traj_point_0, traj_point_1, parent_time = None):
   """ Construc a trajectory in the X-Y space and in the time-X,Y,Theta space.
       Arguments:
         traj_point_0 (list of floats): The trajectory's first trajectory point with time, X, Y, Theta (s, m, m, rad).
@@ -20,10 +38,27 @@ def construct_dubins_traj(traj_point_0, traj_point_1):
         traj (list of lists): A list of trajectory points with time, X, Y, Theta (s, m, m, rad).
         traj_distance (float): The length ofthe trajectory (m).
   """
+  q0 = traj_point_0[1:]
+  q1 = traj_point_1[1:]
+  turning_radius = 0.75  # don't change this
+  # step_size = 0.5
+
+  path = dubins.shortest_path(q0, q1, turning_radius)
+  configurations, _ = path.sample_many(DISTANCE_STEP_SIZE)
+  time_step_size = traj_point_1[0] / len(configurations)
+
   traj = []
   traj_distance = 0
-  
-  # Add code here
+  for i, configuration in enumerate(configurations):
+    traj_point = [i * time_step_size, 0, 0, 0]
+    traj_point[1:] = configuration
+    traj_point[-1] = wrap_to_pi(traj_point[-1])
+    if parent_time is not None:
+      traj_point[0] += parent_time
+    traj.append(traj_point)
+    traj_distance += DISTANCE_STEP_SIZE
+
+  return traj, traj_distance
 
       
   return traj, traj_distance
