@@ -197,7 +197,7 @@ class Expansive_Planner():
       node_B = node_list[i]
       traj_point_0 = node_A.state
       traj_point_1 = node_B.state
-      traj_point_1[3] = math.atan2(traj_point_1[2]-traj_point_0[2], traj_point_1[1]-traj_point_0[1])
+      # traj_point_1[3] = math.atan2(traj_point_1[2]-traj_point_0[2], traj_point_1[1]-traj_point_0[1])
       if len(traj) > 0:
         parent_time = traj[-1][0]
       edge_traj, edge_traj_distance = construct_dubins_traj(traj_point_0, traj_point_1, parent_time)
