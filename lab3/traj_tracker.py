@@ -32,7 +32,7 @@ class TrajectoryTracker():
     
     # Add code here.
 
-    return self.traj[0]
+    return self.traj[self.current_point_to_track]
   
   def print_traj(self):
     """ Print the trajectory points.
@@ -41,18 +41,25 @@ class TrajectoryTracker():
     for i in range(len(self.traj)):
         print(i,self.traj[i])
           
-  def is_traj_tracked(self):
+  def is_traj_tracked(self, controller):
     """ Return true if the traj is tracked.
         Returns:
           traj_tracked (boolean): True if traj has been tracked.
     """
+
+    if controller.point_tracked and self.current_point_to_track == len(self.traj) - 1:
+      self.traj_tracked = True
+    elif controller.point_tracked:
+      self.current_point_to_track += 1
+      controller.point_tracked = False
+
     return self.traj_tracked
     
 class PointTracker():
   """ A class to determine actions (motor control signals) for driving a robot to a position.
   """
   def __init__(self):
-    pass
+    self.point_tracked = False
 
   def get_dummy_action(self, x_des, x):
     """ Return a dummy action for now
@@ -66,13 +73,45 @@ class PointTracker():
           desired_state (list of floats): The desired Time, X, Y, Theta (s, m, m, rad).
           current_state (lis5t of floats): The current Time, X, Y, Theta (s, m, m, rad).
     """
-    # zero all of action
-    action = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ]
+    L = 0.2
 
-    # Add code here.
+    k_p = 30  # > 0, 5, 50
+    k_a = 40  # > k_p, 15, 60
+    k_b = -10  # < 0
 
-    # Set the control vector U
-    action[0] = 0
-    action[1] = 0
-    
+    # various variables...
+    del_x = desired_state[1] - current_state[1]
+    del_y = desired_state[2] - current_state[2]
+    rho = math.sqrt(del_x ** 2 + del_y ** 2)
+    alpha = wrap_to_pi(-current_state[3] + math.atan2(del_y, del_x))
+    beta = wrap_to_pi(-current_state[3] - alpha)
+
+    # check for whether it makes sense to go forward or backward
+    if (abs(alpha) < (math.pi / 2)):
+      beta = wrap_to_pi(beta + desired_state[3])
+      vel = k_p * rho
+      omega = k_a * alpha + k_b * beta
+
+    else:
+      alpha = wrap_to_pi(-current_state[3] + math.atan2(-del_y, -del_x))
+      beta = wrap_to_pi(-current_state[3] - alpha - desired_state[3])
+      vel = - k_p * rho
+      omega = k_a * alpha + k_b * beta
+
+    # calculate left/right omegas
+    omega_r = 1 / 2 * (vel / L + omega)
+    omega_l = 1 / 2 * (omega - vel / L)
+
+    # calculate left/right velocities
+    vel_r = omega_r * 2 * L
+    vel_l = -omega_l * 2 * L
+
+    # set the control vector
+    action = [vel_r, vel_l, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+    # set self.point_tracked=True  when the  robots is within tolerance of the point being tracked
+    # use the variables MIN_DIST_TO_POINT and MIN_ANG_TO_POINT
+    if (abs(rho) < MIN_DIST_TO_POINT and abs(beta) < MIN_ANG_TO_POINT):
+      self.point_tracked = True
+
     return action

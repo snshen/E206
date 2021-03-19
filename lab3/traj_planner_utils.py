@@ -60,10 +60,7 @@ def construct_dubins_traj(traj_point_0, traj_point_1, parent_time = None):
 
   return traj, traj_distance
 
-      
-  return traj, traj_distance
-
-def plot_traj(traj_desired, traj_actual, objects, walls):
+def plot_traj(traj_desired, traj_actual, objects, walls, fname="default.png"):
   """ Plot a trajectory in the X-Y space and in the time-X,Y,Theta space.
       Arguments:
         desired_traj (list of lists): A list of trajectory points with time, X, Y, Theta (s, m, m, rad).
@@ -122,7 +119,8 @@ def plot_traj(traj_desired, traj_actual, objects, walls):
   axis_array[1].set_xlabel('Time (s)')
   axis_array[1].legend(['X Desired (m)', 'Y Desired (m)', 'Theta Desired (rad)', 'X (m)', 'Y (m)', 'Theta (rad)'])
 
-  plt.show()
+  # plt.show()
+  plt.savefig(fname)
   
 def collision_found(traj, objects, walls):
   """ Return true if there is a collision with the traj and the workspace
