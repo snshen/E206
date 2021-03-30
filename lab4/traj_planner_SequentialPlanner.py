@@ -2,7 +2,7 @@
 
 # Simple planner
 # C Clark
-
+import copy
 import math
 import statistics
 
@@ -47,7 +47,7 @@ class Sequential_Planner():
     def __init__(self):
         pass
 
-    def construct_traj_set(self, planning_problem_list):
+    def construct_traj_set(self, planning_problem_list, strategy):
         """ Function that creates a set of trajectories for several planning problems (1 per robot).
             - Parameters:
               - planning_problem_list (list of Planning_Problems): One pp to solve per robot.
@@ -57,16 +57,18 @@ class Sequential_Planner():
 
         traj_set_list = []
         traj_cost_list = []
+        traj_constr_list = []
 
         for robot in planning_problem_list:
             robot.add_trajs_as_obstacles(traj_set_list)
-            temp_traj, traj_cost = robot.planner.construct_optimized_traj(robot.initial_state, robot.desired_state,
-                                                                          robot.objects, robot.walls)
+            temp_traj, traj_cost, constr_time = robot.planner.construct_optimized_traj(robot.initial_state, robot.desired_state,
+                                                                          robot.objects, robot.walls, strategy)
             # print("temp traj: ", temp_traj)
             traj_set_list.append(temp_traj)
             traj_cost_list.append(traj_cost)
+            traj_constr_list.append(constr_time)
 
-        return traj_set_list, traj_cost_list
+        return traj_set_list, traj_cost_list, traj_constr_list
 
 
 def random_pose(maxR):
@@ -107,60 +109,73 @@ if __name__ == '__main__':
     maxR = 10
     obj_vel = 1
 
+    dict_lengths = {"uniform": [], "random": [], "gaussian": []}
     cost_1 = []
-    count_1 = []
+    # count_1 = []
     cost_2 = []
-    count_2 = []
+    # count_2 = []
     cost_3 = []
-    count_3 = []
+    # count_3 = []
 
-    robot_initial_pose_list = []
-    robot_initial_state_list = []
-    for _ in range(num_robots):
-        # fun_initial = [8, 0, 0.2, 0.4]
-        # robot_initial_pose_list += [fun_initial]
-        # robot_initial_state_list += [[0, fun_initial[0], fun_initial[1], fun_initial[2]]]
-        ns = get_new_random_pose(robot_initial_pose_list, maxR, ROBOT_RADIUS)
-        robot_initial_pose_list += [ns]
-        robot_initial_state_list += [[0, ns[0], ns[1], ns[2]]]
+    for j in range(10):
+        robot_initial_pose_list = []
+        robot_initial_state_list = []
+        for _ in range(num_robots):
+            # fun_initial = [8, 0, 0.2, 0.4]
+            # robot_initial_pose_list += [fun_initial]
+            # robot_initial_state_list += [[0, fun_initial[0], fun_initial[1], fun_initial[2]]]
+            ns = get_new_random_pose(robot_initial_pose_list, maxR, ROBOT_RADIUS)
+            robot_initial_pose_list += [ns]
+            robot_initial_state_list += [[0, ns[0], ns[1], ns[2]]]
 
-    robot_desired_pose_list = []
-    robot_desired_state_list = []
-    for _ in range(num_robots):
-        # fun_desired = [-8, 0, 0.2, 0.4]
-        # robot_desired_pose_list += [fun_desired]
-        # robot_desired_state_list += [[0, fun_desired[0], fun_desired[1], fun_desired[2]]]
-        ns = get_new_random_pose(robot_desired_pose_list, maxR, ROBOT_RADIUS)
-        robot_desired_pose_list += [ns]
-        robot_desired_state_list += [[20, ns[0], ns[1], ns[2]]]
+        robot_desired_pose_list = []
+        robot_desired_state_list = []
+        for _ in range(num_robots):
+            # fun_desired = [-8, 0, 0.2, 0.4]
+            # robot_desired_pose_list += [fun_desired]
+            # robot_desired_state_list += [[0, fun_desired[0], fun_desired[1], fun_desired[2]]]
+            ns = get_new_random_pose(robot_desired_pose_list, maxR, ROBOT_RADIUS)
+            robot_desired_pose_list += [ns]
+            robot_desired_state_list += [[20, ns[0], ns[1], ns[2]]]
 
-    object_list = []
-    for _ in range(num_objects):
-        object_radius = random.uniform(0.3, 1.0)
-        obj_pose = get_new_random_pose(robot_initial_pose_list + robot_desired_pose_list, maxR, object_radius)
-        obj_yaw = obj_pose[2]
-        # obj_yaw = wrap_to_pi(4.7)
-        object_list += [['obstacle', [obj_pose[0], obj_pose[1], 0.5, obj_vel, obj_yaw]]]
+        object_list = []
+        for _ in range(num_objects):
+            object_radius = random.uniform(0.3, 1.0)
+            obj_pose = get_new_random_pose(robot_initial_pose_list + robot_desired_pose_list, maxR, object_radius)
+            obj_yaw = obj_pose[2]
+            # obj_yaw = wrap_to_pi(4.7)
+            object_list += [['obstacle', [obj_pose[0], obj_pose[1], 0.5, obj_vel, obj_yaw]]]
 
-    walls = [[-maxR, maxR, maxR, maxR, 2 * maxR], [maxR, maxR, maxR, -maxR, 2 * maxR],
-             [maxR, -maxR, -maxR, -maxR, 2 * maxR], [-maxR, -maxR, -maxR, maxR, 2 * maxR]]
+        walls = [[-maxR, maxR, maxR, maxR, 2 * maxR], [maxR, maxR, maxR, -maxR, 2 * maxR],
+                 [maxR, -maxR, -maxR, -maxR, 2 * maxR], [-maxR, -maxR, -maxR, maxR, 2 * maxR]]
 
-    planning_problem_list = []
-    for i in range(num_robots):
-        pp = Planning_Problem(robot_initial_state_list[i], robot_desired_state_list[i], object_list, walls)
-        planning_problem_list.append(pp)
+        planning_problem_list = []
+        for i in range(num_robots):
+            pp = Planning_Problem(robot_initial_state_list[i], robot_desired_state_list[i], object_list, walls)
+            planning_problem_list.append(pp)
 
-    strategies = []
-    planner = Sequential_Planner()
-    traj_list, traj_cost_list = planner.construct_traj_set(planning_problem_list)
+        velocities = ["random", "uniform", "gaussian"]
+        for vel in velocities:
+            # print(vel)
+            planner = Sequential_Planner()
+            planning_problem_list_copy = copy.deepcopy(planning_problem_list)
+            traj_list, traj_cost_list, traj_constr_list = planner.construct_traj_set(planning_problem_list_copy, vel)
+            dict_lengths[vel].append(sum(traj_constr_list))
+        # cost_1 = traj_cost_list
 
-    # cost_1 = traj_cost_list
-    print("perf:", statistics.mean(traj_cost_list))
+        print("after run #", j)
+        for vel in ["random", "uniform", "gaussian"]:
+            # print(dict_lengths[vel], type(dict_lengths[vel]))
+            print(vel, ": ", statistics.mean(dict_lengths[vel]))
 
-    # print("PERFORMANCE:")
+    # print("perf:", statistics.mean(cost_1))
+
+    print("PERFORMANCE:")
+    for vel in ["random", "uniform", "gaussian"]:
+        print(vel, ": ", statistics.mean(dict_lengths[vel]))
     # print("1:", statistics.mean(count_1), statistics.mean(naive_count))
     # print("2:", statistics.mean(weighted_cost), statistics.mean(weighted_count))
     # print("5:", statistics.mean(weighted_cost), statistics.mean(weighted_count))
 
-    if len(traj_list) > 0:
-        plot_traj_list(traj_list, object_list, walls)
+    # if len(traj_list) > 0:
+    #     plot_traj_list(traj_list, object_list, walls)

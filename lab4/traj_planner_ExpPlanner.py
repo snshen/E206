@@ -34,7 +34,7 @@ class Expansive_Planner():
     DISTANCE_DELTA = 1.5  # m
     DIST_TO_GOAL_THRESHOLD = 0.5  # m
     GRID_RESOLUTION = 0.5  # m
-    # EDGE_TIME = 0.1 #s
+    EDGE_TIME = 0.1 #s
     LARGE_NUMBER = 9999999
 
     MAX_NUM_ITERATIONS = 1000
@@ -46,7 +46,7 @@ class Expansive_Planner():
     def __init__(self):
         self.fringe = []
 
-    def construct_traj(self, initial_state, desired_state, objects, walls, sampling_strategy="random"):
+    def construct_traj(self, initial_state, desired_state, objects, walls, sampling_strategy):
         """ Construct a trajectory in the X-Y space and in the time-X,Y,Theta space.
             Arguments:
               traj_point_0 (list of floats): The trajectory's first trajectory point with time, X, Y, Theta (s, m, m, rad).
@@ -69,13 +69,12 @@ class Expansive_Planner():
         # loop to find goal
         while True:
             current_node = self.sample_random_node()
-            # if sampling_strategy == "random":
-            #     self.mean_edge_velocity = random.uniform(0.5, 1.5)
-            # elif sampling_strategy == "random_fast":
-            #     self.mean_edge_velocity = random.uniform(1.5, 2.5)
-            # elif sampling_strategy == "random_faster":
-            #     self.mean_edge_velocity = random.uniform(2.5, 3.5)
-            # else:
+            if sampling_strategy == "random":
+                self.mean_edge_velocity = random.uniform(0, 5)
+            elif sampling_strategy == "uniform":
+                self.mean_edge_velocity = 2.5
+            elif sampling_strategy == "gaussian":
+                self.mean_edge_velocity = random.gauss(2.5, 2)
 
             new_node = self.generate_random_node(current_node)
             if not self.collision_found(current_node, new_node):
@@ -84,7 +83,7 @@ class Expansive_Planner():
                     goal_node = self.generate_goal_node(new_node, self.desired_state)
                     return self.build_traj(goal_node)
 
-    def construct_optimized_traj(self, initial_state, desired_state, objects, walls):
+    def construct_optimized_traj(self, initial_state, desired_state, objects, walls, strategy):
         """ Construct the best trajectory possible within a limited time budget.
             Arguments:
               traj_point_0 (list of floats): The trajectory's first trajectory point with time, X, Y, Theta (s, m, m, rad).
@@ -105,7 +104,7 @@ class Expansive_Planner():
         while (curr_time - start_time) < self.PLAN_TIME_BUDGET:
             # for i in range(1):
             i += 1
-            traj, traj_cost = self.construct_traj(initial_state, desired_state, objects, walls, "random")
+            traj, traj_cost = self.construct_traj(initial_state, desired_state, objects, walls, strategy)
             if traj_cost < best_traj_cost:
                 best_traj = traj
                 best_traj_cost = traj_cost
@@ -114,8 +113,9 @@ class Expansive_Planner():
             how_long_it_take.append(curr_time - temp_time)
             # print(f"curr time: {curr_time}\n")
             # print(f"count: {i}")
-        # print(f"average length to meas: {statistics.mean(how_long_it_take)}")
-        return best_traj, best_traj_cost
+        # print(strategy)
+        print(f"average length to meas: {statistics.mean(how_long_it_take)}")
+        return best_traj, best_traj_cost, statistics.mean(how_long_it_take)
 
     def add_to_tree(self, node):
         """ Add the node to the tree.
@@ -216,7 +216,7 @@ class Expansive_Planner():
             node_B = node_list[i]
             traj_point_0 = node_A.state
             traj_point_1 = node_B.state
-            print("start and end times", traj_point_0[0], traj_point_1[0])
+            # print("start and end times", traj_point_0[0], traj_point_1[0])
             if len(traj) > 0:
                 parent_time = traj[len(traj) - 1][0]
                 # print(traj[len(traj)-1])
