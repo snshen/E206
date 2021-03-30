@@ -16,7 +16,6 @@ def main():
   planner = A_Star_Planner()
   desired_traj = planner.construct_traj(current_state, desired_state, objects, walls)
   print(desired_traj[:][0])
-  # print(len(desired_traj[0]))
 
   # Construct an environment
   env = gym.make("fetch-v0") # <-- this we need to create
