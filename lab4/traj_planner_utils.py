@@ -40,7 +40,7 @@ def construct_dubins_traj(traj_point_0, traj_point_1, parent_time = None):
   """
   q0 = (traj_point_0[1], traj_point_0[2], traj_point_0[3])
   q1 = (traj_point_1[1], traj_point_1[2], traj_point_1[3])
-  turning_radius = 0.01
+  turning_radius = 0.6
   
   path = dubins.shortest_path(q0, q1, turning_radius)
   configurations, distances = path.sample_many(DISTANCE_STEP_SIZE)
@@ -52,12 +52,14 @@ def construct_dubins_traj(traj_point_0, traj_point_1, parent_time = None):
   traj = []
   traj_point_time = traj_point_0[0]
   for c in configurations:
-    if parent_time is not None:
-      traj_point_time += parent_time
+    # if parent_time is not None:
+    #   traj_point_time += parent_time
     traj_point = [traj_point_time, c[0], c[1], c[2]]
     traj.append(traj_point)
     traj_point_time += time_step_size
-      
+
+  # for point in traj:
+    # print(point[0])
   return traj, traj_distance
 
 def plot_traj(traj_desired, traj_actual, objects, walls):
@@ -153,8 +155,8 @@ def plot_traj_list(traj_list, objects, walls):
     axis_array[0].plot(x_desired[0], y_desired[0], 'ko')
     axis_array[0].plot(x_desired[-1], y_desired[-1], 'kx')
     axis_array[1].plot(time_stamp_desired, x_desired, color)
-    axis_array[1].plot(time_stamp_desired, y_desired, color=color, marker='--')
-    axis_array[1].plot(time_stamp_desired, theta_desired, color=color, marker='-.')
+    axis_array[1].plot(time_stamp_desired, y_desired, color=color, linestyle='--')
+    axis_array[1].plot(time_stamp_desired, theta_desired, color=color, linestyle='-.')
     color_index += 1
 
 
