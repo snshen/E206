@@ -5,6 +5,7 @@ import math
 import random
 from traj_planner_utils import *
 from traj_tracker import *
+import numpy as np
 
     
 def main():
@@ -30,6 +31,8 @@ def main():
   while not traj_tracker.is_traj_tracked():
       current_state = [current_time_stamp, observation[0], observation[1], observation[2]]
       desired_state = traj_tracker.get_traj_point_to_track(current_state)
+      desired_state[0] = current_time_stamp
+
       print("Cur:",current_state,"Des:",desired_state)
       action = controller.point_tracking_control(desired_state, current_state)
       observation, reward, done, dummy = env.step(action)
@@ -38,7 +41,10 @@ def main():
       current_time_stamp += TIME_STEP_SIZE
   time.sleep(2)
   plot_traj(desired_traj, actual_traj, objects, walls)
-  
+
+  np.save('data/des_traj.npy', desired_traj)
+  np.save('data/act_traj.npy', actual_traj)
+
   env.close()
   
 def create_motion_planning_problem():

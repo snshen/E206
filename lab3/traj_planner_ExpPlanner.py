@@ -87,7 +87,7 @@ class Expansive_Planner():
         best_traj_cost = self.LARGE_NUMBER
         curr_time = start_time
         how_long_it_take = []
-        # print(f"start time: {curr_time}\n")
+
         i = 0
         # Add code here to make many trajs within a time budget and return the best traj
         # You will want to call construct_traj

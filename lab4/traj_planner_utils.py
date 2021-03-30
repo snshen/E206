@@ -13,6 +13,22 @@ ROBOT_RADIUS = 0.4 #m
 BUFFER_TIME = 0.4 #s
 COLLISION_BUFFER = 0.2 #m
 
+def wrap_to_pi(angle):
+  """Wrap angle data in radians to [-pi, pi]
+
+  Parameters:
+  angle (float)   -- unwrapped angle
+
+  Returns:
+  angle (float)   -- wrapped angle
+  """
+  while angle >= math.pi:
+    angle -= 2 * math.pi
+
+  while angle <= -math.pi:
+    angle += 2 * math.pi
+  return angle
+
 def construct_dubins_traj(traj_point_0, traj_point_1):
   """ Construc a trajectory in the X-Y space and in the time-X,Y,Theta space.
       Arguments:
