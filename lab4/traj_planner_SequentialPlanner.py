@@ -91,8 +91,8 @@ def get_new_random_pose(pose_list, maxR, radius):
   return new_pose + [radius]
 
 if __name__ == '__main__':
-  num_robots = 3
-  num_objects = 2
+  num_robots = 4
+  num_objects = 10
   maxR = 10
   obj_vel = 0.0
   

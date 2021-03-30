@@ -134,7 +134,7 @@ def plot_traj_list(traj_list, objects, walls):
   """
   fig, axis_array = plt.subplots(2,1)
   # print("list of lists: ", traj_list)
-  color_list = ['b', 'r', 'g', 'o']
+  color_list = ['royalblue', 'midnightblue', 'mediumpurple', 'violet', 'b', 'r', 'g', 'o', 'c', 'm']
   color_index = 0
   for traj_desired in traj_list:
     time_stamp_desired = []
@@ -152,9 +152,9 @@ def plot_traj_list(traj_list, objects, walls):
     axis_array[0].plot(x_desired, y_desired, color)
     axis_array[0].plot(x_desired[0], y_desired[0], 'ko')
     axis_array[0].plot(x_desired[-1], y_desired[-1], 'kx')
-    axis_array[1].plot(time_stamp_desired, x_desired,color)
-    axis_array[1].plot(time_stamp_desired, y_desired,color+'--')
-    axis_array[1].plot(time_stamp_desired, theta_desired,color+'-.')
+    axis_array[1].plot(time_stamp_desired, x_desired, color)
+    axis_array[1].plot(time_stamp_desired, y_desired, color=color, marker='--')
+    axis_array[1].plot(time_stamp_desired, theta_desired, color=color, marker='-.')
     color_index += 1
 
 
