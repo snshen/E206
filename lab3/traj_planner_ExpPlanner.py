@@ -3,11 +3,14 @@
 # Simple planner
 # C Clark
 
+import math
+import dubins
 import random
-import statistics
+import matplotlib.pyplot as plt
+from traj_planner_utils import plot_traj, construct_dubins_traj, wrap_to_pi, collision_found
+import numpy as np
 import time
-
-from traj_planner_utils import *
+import statistics
 
 
 class Node():
@@ -35,16 +38,15 @@ class Expansive_Planner():
     LARGE_NUMBER = 9999999
 
     MAX_NUM_ITERATIONS = 1000
+    MIN_RAND_DISTANCE = 1.0  # m
+    MAX_RAND_DISTANCE = 5.0  # m
     MEAN_EDGE_VELOCITY = 0.75  # m
-    # PLAN_TIME_BUDGET = 0.5 #s
-    PLAN_TIME_BUDGET = 3  # s
+    PLAN_TIME_BUDGET = 5  # s
 
     def __init__(self):
         self.fringe = []
-        self.min_rand_dist = 1.0  # m
-        self.max_rand_dist = 5.0  # m
 
-    def construct_traj(self, initial_state, desired_state, objects, walls):
+    def construct_traj(self, initial_state, desired_state, objects, walls, mode=0):
         """ Construct a trajectory in the X-Y space and in the time-X,Y,Theta space.
             Arguments:
               traj_point_0 (list of floats): The trajectory's first trajectory point with time, X, Y, Theta (s, m, m, rad).
@@ -58,22 +60,35 @@ class Expansive_Planner():
         self.desired_node = Node(desired_state, None, 0)
         self.objects = objects
         self.walls = walls
+        maxR = abs(2 * walls[0][0])
+        ind_len = int(maxR // self.GRID_RESOLUTION)
+        self.grid = [[] for i in range(ind_len * ind_len)]
+        self.grid_weights = [0] * ind_len * ind_len
 
         # initialize run
         initial_node = Node(initial_state, None, 0)
         self.tree.append(initial_node)
 
         # loop to find goal
+
+        start_time = time.perf_counter()
+
         while True:
-            current_node = self.sample_random_node()
+
+            if mode == 0:
+                current_node = self.sample_random_node()
+            elif mode == 1:
+                current_node = self.sample_weighted_node(maxR)
             new_node = self.generate_random_node(current_node)
             if not self.collision_found(current_node, new_node):
                 self.add_to_tree(new_node)
                 if not self.collision_found(new_node, self.desired_node):
                     goal_node = self.generate_goal_node(new_node, self.desired_state)
                     return self.build_traj(goal_node)
+            if (time.perf_counter() - start_time > self.PLAN_TIME_BUDGET):
+                return [], self.LARGE_NUMBER
 
-    def construct_optimized_traj(self, initial_state, desired_state, objects, walls):
+    def construct_optimized_traj(self, initial_state, desired_state, objects, walls, mode=0):
         """ Construct the best trajectory possible within a limited time budget.
             Arguments:
               traj_point_0 (list of floats): The trajectory's first trajectory point with time, X, Y, Theta (s, m, m, rad).
@@ -88,23 +103,27 @@ class Expansive_Planner():
         curr_time = start_time
         how_long_it_take = []
 
-        i = 0
+        num_constructions = 0
+        # print(f"start time: {curr_time}\n")
+
         # Add code here to make many trajs within a time budget and return the best traj
         # You will want to call construct_traj
         while (curr_time - start_time) < self.PLAN_TIME_BUDGET:
+
+            # print("creating traj", num_constructions)
             # for i in range(25):
-            i += 1
-            traj, traj_cost = self.construct_traj(initial_state, desired_state, objects, walls)
+            traj, traj_cost = self.construct_traj(initial_state, desired_state, objects, walls, mode=mode)
             if traj_cost < best_traj_cost:
                 best_traj = traj
                 best_traj_cost = traj_cost
             temp_time = curr_time
             curr_time = time.perf_counter()
-            how_long_it_take.append(curr_time-temp_time)
-            print(f"curr time: {curr_time}\n")
-            print(f"count: {i}")
-        print(f"average length to meas: {statistics.mean(how_long_it_take)}")
-        return best_traj, best_traj_cost
+            how_long_it_take.append(curr_time - temp_time)
+            # print(f"curr time: {curr_time}\n")
+            num_constructions += 1
+        mean_duration = (time.perf_counter() - start_time) / num_constructions
+
+        return best_traj, best_traj_cost, mean_duration, num_constructions
 
     def add_to_tree(self, node):
         """ Add the node to the tree.
@@ -125,6 +144,22 @@ class Expansive_Planner():
         # TODO: optimize with weights
         return random.choice(self.tree)
 
+    def sample_weighted_node(self, maxR):
+        """ Randomly select a node from the tree and return it.
+            Returns:
+              node (Node): A randomly selected node from the tree.
+        """
+        # print(len(self.tree))
+        new_node = self.tree[-1]
+        x_ind = (new_node.state[0] + maxR) // self.GRID_RESOLUTION
+        y_ind = - (new_node.state[1] - maxR) // self.GRID_RESOLUTION
+        ind = int(x_ind + y_ind * maxR)
+
+        self.grid[ind].append(new_node)
+        self.grid_weights[ind] = 1 / len(self.grid[ind])
+
+        return random.choice(random.choices(self.grid, weights=self.grid_weights)[0])
+
     def generate_random_node(self, node_to_expand):
         """ Create a new node by expanding from the parent node using.
             Arguments:
@@ -140,7 +175,7 @@ class Expansive_Planner():
         parent_theta = node_to_expand.state[3]
 
         # Generate random distance and angle
-        random_distance = random.uniform(self.min_rand_dist, self.max_rand_dist)
+        random_distance = random.uniform(self.MIN_RAND_DISTANCE, self.MAX_RAND_DISTANCE)
         random_angle = wrap_to_pi(random.uniform(0, 2 * math.pi))
 
         # Calculate state for child
@@ -203,7 +238,6 @@ class Expansive_Planner():
             node_B = node_list[i]
             traj_point_0 = node_A.state
             traj_point_1 = node_B.state
-            # traj_point_1[3] = math.atan2(traj_point_1[2]-traj_point_0[2], traj_point_1[1]-traj_point_0[1])
             if len(traj) > 0:
                 parent_time = traj[-1][0]
             edge_traj, edge_traj_distance = construct_dubins_traj(traj_point_0, traj_point_1, parent_time)
@@ -227,7 +261,13 @@ class Expansive_Planner():
 
 
 if __name__ == '__main__':
-    for i in range(0, 1):
+    niave_cost = []
+    weighted_cost = []
+    niave_count = []
+    weighted_count = []
+
+    for i in range(0, 50):
+        print("run", i)
         maxR = 10
         tp0 = [0, -8, -8, 0]
         tp1 = [300, 8, 8, 0]
@@ -242,18 +282,20 @@ if __name__ == '__main__':
                     abs(obj[0] - tp1[1]) < 1 and abs(obj[1] - tp1[2]) < 1):
                 obj = [random.uniform(-maxR + 1, maxR - 1), random.uniform(-maxR + 1, maxR - 1), 1.0]
             objects.append(obj)
-        # traj, traj_cost = planner.construct_traj(tp0, tp1, objects, walls)
-        list_of_min_dists = [1]
-        list_of_max_dists = [5]
-        # list_of_min_dists = [0, 1, 2, 3, 4]
-        # list_of_max_dists = [1, 2, 3, 4, 5]
-        # list_of_min_dists = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5]
-        # list_of_max_dists = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5]
-        for i in range(len(list_of_min_dists)):
-            planner.min_rand_dist = list_of_min_dists[i]
-            planner.max_rand_dist = list_of_max_dists[i]
-            print(f"min is {planner.min_rand_dist} and max is {planner.max_rand_dist}")
-            traj, traj_cost = planner.construct_optimized_traj(tp0, tp1, objects, walls)
-            if len(traj) > 0:
-                plot_traj(traj, traj, objects, walls, f"{i}.png")
-                print(f"traj_cost is {traj_cost}")
+        traj, traj_cost, mean_duration, num_constructions = planner.construct_optimized_traj(tp0, tp1, objects, walls,
+                                                                                             mode=0)
+        if (traj_cost < planner.LARGE_NUMBER):
+            niave_cost.append(traj_cost)
+            niave_count.append(num_constructions)
+        else:
+            print("exceeded expected runtime to build traj")
+        traj, traj_cost, mean_duration, num_constructions = planner.construct_optimized_traj(tp0, tp1, objects, walls,
+                                                                                             mode=1)
+        if (traj_cost < planner.LARGE_NUMBER):
+            weighted_cost.append(traj_cost)
+            weighted_count.append(num_constructions)
+        else:
+            print("exceeded expected runtime to build traj")
+    print("PERFORMANCE:")
+    print("niave:", statistics.mean(niave_cost), statistics.mean(niave_count))
+    print("weighted:", statistics.mean(weighted_cost), statistics.mean(weighted_count) / 5)
