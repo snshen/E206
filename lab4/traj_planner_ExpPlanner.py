@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from traj_planner_utils import *
 import numpy as np
 import time
+import statistics
 
 class Node():
 
@@ -140,7 +141,7 @@ class Expansive_Planner():
     parent_theta = node_to_expand.state[3]
 
     # Generate random distance and angle
-    random_distance = random.uniform(self.min_rand_dist, self.max_rand_dist)
+    random_distance = random.uniform(self.MIN_RAND_DISTANCE, self.MAX_RAND_DISTANCE)
     random_angle = wrap_to_pi(random.uniform(0, 2 * math.pi))
 
     # Calculate state for child
@@ -175,7 +176,7 @@ class Expansive_Planner():
         Returns:
           traj_distance: The length of the edge, or is the LARGE_NUMBER if collision exists (m).
     """
-    traj, traj_distance = construct_dubins_traj(parent_node.state, state)
+    traj, traj_distance = construct_dubins_traj(parent_node.state, state, )
     if collision_found(traj, self.objects, self.walls):
       return self.LARGE_NUMBER
 
@@ -205,7 +206,9 @@ class Expansive_Planner():
       traj_point_1 = node_B.state
       if len(traj) > 0:
         parent_time = traj[-1][0]
-      edge_traj, edge_traj_distance = construct_dubins_traj(traj_point_0, traj_point_1)
+        print(parent_time)
+      edge_traj, edge_traj_distance = construct_dubins_traj(traj_point_0, traj_point_1,  parent_time=parent_time)
+      # print(edge_traj)
       traj = traj + edge_traj
       traj_cost = traj_cost + edge_traj_distance
     

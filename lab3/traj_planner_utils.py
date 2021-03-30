@@ -60,8 +60,6 @@ def construct_dubins_traj(traj_point_0, traj_point_1, parent_time = None):
 
   return traj, traj_distance
 
-      
-  return traj, traj_distance
 
 def plot_traj(traj_desired, traj_actual, objects, walls):
   """ Plot a trajectory in the X-Y space and in the time-X,Y,Theta space.

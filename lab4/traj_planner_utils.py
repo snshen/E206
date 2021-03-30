@@ -29,7 +29,7 @@ def wrap_to_pi(angle):
     angle += 2 * math.pi
   return angle
 
-def construct_dubins_traj(traj_point_0, traj_point_1):
+def construct_dubins_traj(traj_point_0, traj_point_1, parent_time = None):
   """ Construc a trajectory in the X-Y space and in the time-X,Y,Theta space.
       Arguments:
         traj_point_0 (list of floats): The trajectory's first trajectory point with time, X, Y, Theta (s, m, m, rad).
@@ -40,7 +40,7 @@ def construct_dubins_traj(traj_point_0, traj_point_1):
   """
   q0 = (traj_point_0[1], traj_point_0[2], traj_point_0[3])
   q1 = (traj_point_1[1], traj_point_1[2], traj_point_1[3])
-  turning_radius = 0.5
+  turning_radius = 0.01
   
   path = dubins.shortest_path(q0, q1, turning_radius)
   configurations, distances = path.sample_many(DISTANCE_STEP_SIZE)
@@ -52,6 +52,8 @@ def construct_dubins_traj(traj_point_0, traj_point_1):
   traj = []
   traj_point_time = traj_point_0[0]
   for c in configurations:
+    if parent_time is not None:
+      traj_point_time += parent_time
     traj_point = [traj_point_time, c[0], c[1], c[2]]
     traj.append(traj_point)
     traj_point_time += time_step_size
@@ -131,22 +133,29 @@ def plot_traj_list(traj_list, objects, walls):
         walls (list of lists: A list of walls with corners X1, Y1 and X2, Y2 points, length (m, m, m, m, m).
   """
   fig, axis_array = plt.subplots(2,1)
+  # print("list of lists: ", traj_list)
+  color_list = ['b', 'r', 'g', 'o']
+  color_index = 0
   for traj_desired in traj_list:
     time_stamp_desired = []
     x_desired = []
     y_desired = []
     theta_desired = []
+    # print("lists: ", traj_desired)
     for tp in traj_desired:
+      # print("tp: ", tp)
       time_stamp_desired.append(tp[0])
       x_desired.append(tp[1])
       y_desired.append(tp[2])
       theta_desired.append(angle_diff(tp[3]))
-    axis_array[0].plot(x_desired, y_desired, 'b')
+    color = color_list[color_index]
+    axis_array[0].plot(x_desired, y_desired, color)
     axis_array[0].plot(x_desired[0], y_desired[0], 'ko')
     axis_array[0].plot(x_desired[-1], y_desired[-1], 'kx')
-    axis_array[1].plot(time_stamp_desired, x_desired,'b')
-    axis_array[1].plot(time_stamp_desired, y_desired,'b--')
-    axis_array[1].plot(time_stamp_desired, theta_desired,'b-.')
+    axis_array[1].plot(time_stamp_desired, x_desired,color)
+    axis_array[1].plot(time_stamp_desired, y_desired,color+'--')
+    axis_array[1].plot(time_stamp_desired, theta_desired,color+'-.')
+    color_index += 1
 
 
   ang_res = 0.2
@@ -176,7 +185,7 @@ def plot_traj_list(traj_list, objects, walls):
   
 
   axis_array[1].set_xlabel('Time (s)')
-  axis_array[1].legend(['X Desired (m)', 'Y Desired (m)'])
+  axis_array[1].legend(['X Desired (m)', 'Y Desired (m)', 'Theta Desired (Rad)'])
 
   plt.show()
 

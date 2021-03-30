@@ -50,10 +50,16 @@ class Sequential_Planner():
         - Returns:
           - traj_set (list of list of floats): One traj per robot.
     """
-    
-    # Add code here to create a traj set #
-        
-    return []
+
+    traj_set_list = []
+
+    for robot in planning_problem_list:
+      robot.add_trajs_as_obstacles(traj_set_list)
+      temp_traj, traj_cost = robot.planner.construct_optimized_traj(robot.initial_state, robot.desired_state, robot.objects, robot.walls)
+      # print("temp traj: ", temp_traj)
+      traj_set_list.append(temp_traj)
+
+    return traj_set_list
       
 def random_pose(maxR):
   """ Function to generate random pose (x, y, theta) within bounds +/- maxR.
@@ -85,7 +91,7 @@ def get_new_random_pose(pose_list, maxR, radius):
   return new_pose + [radius]
 
 if __name__ == '__main__':
-  num_robots = 1
+  num_robots = 3
   num_objects = 2
   maxR = 10
   obj_vel = 0.0
