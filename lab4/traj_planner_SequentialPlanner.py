@@ -42,7 +42,13 @@ class Planning_Problem():
             self.objects.append(['traj', traj])
 
 
+def dist_between_i_d(pp):
+    return math.sqrt(
+        (pp.desired_state[1] - pp.initial_state[1]) ** 2 + (pp.desired_state[2] - pp.initial_state[2]) ** 2)
+
 class Sequential_Planner():
+    PLAN_TIME_BUDGET = 10.0  # s
+    LARGE_NUMBER = 9999999
 
     def __init__(self):
         pass
@@ -69,6 +75,64 @@ class Sequential_Planner():
             traj_constr_list.append(constr_time)
 
         return traj_set_list, traj_cost_list, traj_constr_list
+
+    def construct_traj_set_(self, planning_problem_list, selection_strategy, order_strategy):
+        """ Function that creates a set of trajectories for several planning problems (1 per robot).
+            - Parameters:
+              - planning_problem_list (list of Planning_Problems): One pp to solve per robot.
+            - Returns:
+              - traj_set (list of list of floats): One traj per robot.
+        """
+
+        traj_set_list = []
+        traj_cost_list = []
+
+        if order_strategy == 'static':
+            pass
+        elif order_strategy == 'random':
+            random.shuffle(planning_problem_list)
+        elif order_strategy == 'priority':
+            planning_problem_list.sort(key=dist_between_i_d)
+
+        for robot in planning_problem_list:
+            robot.add_trajs_as_obstacles(traj_set_list)
+            temp_traj, traj_cost = robot.planner.construct_traj(robot.initial_state, robot.desired_state,
+                                                                          robot.objects, robot.walls, selection_strategy)
+            traj_set_list.append(temp_traj)
+            traj_cost_list.append(traj_cost)
+
+        return traj_set_list, traj_cost_list
+
+    def construct_optimized_traj_set(self, planning_problem_list, selection_strategy, order_strategy):
+        """ Function that creates a set of trajectories for several planning problems (1 per robot).
+                    - Parameters:
+                      - planning_problem_list (list of Planning_Problems): One pp to solve per robot.
+                    - Returns:
+                      - traj_set (list of list of floats): One traj per robot.
+        """
+
+        start_time = time.perf_counter()
+        curr_time = start_time
+        best_traj = []
+        best_traj_cost = 10*[self.LARGE_NUMBER]
+        construction_time = []
+
+        while (curr_time - start_time) < self.PLAN_TIME_BUDGET:
+            # print(curr_time - start_time)
+            planning_problem_list_copy = copy.deepcopy(planning_problem_list)
+            temp_traj, traj_cost = self.construct_traj_set_(planning_problem_list_copy, selection_strategy, order_strategy)
+            if statistics.mean(traj_cost) < statistics.mean(best_traj_cost):
+                best_traj = temp_traj
+                best_traj_cost = traj_cost
+
+            # update times
+            temp_time = curr_time
+            curr_time = time.perf_counter()
+            construction_time.append(curr_time - temp_time)
+
+        # print(f"average length to meas: {statistics.mean(construction_time)}")
+
+        return best_traj, best_traj_cost, construction_time
 
 
 def random_pose(maxR):
@@ -104,13 +168,15 @@ def get_new_random_pose(pose_list, maxR, radius):
 
 
 if __name__ == '__main__':
-    num_robots = 3
+    num_robots = 5
     num_objects = 10
     maxR = 10
     obj_vel = 1
 
-    dict_lengths = {"uniform": [], "random": [], "gaussian": []}
-    dict_cost = {"uniform": [], "random": [], "gaussian": []}
+    # dict_lengths = {"uniform": [], "random": [], "gaussian": []}
+    # dict_cost = {"uniform": [], "random": [], "gaussian": []}
+    dict_lengths = {"static": [], "random": [], "priority": []}
+    dict_cost = {"static": [], "random": [], "priority": []}
     cost_1 = []
     # count_1 = []
     cost_2 = []
@@ -118,7 +184,7 @@ if __name__ == '__main__':
     cost_3 = []
     # count_3 = []
 
-    for j in range(10):
+    for j in range(5):
         robot_initial_pose_list = []
         robot_initial_state_list = []
         for _ in range(num_robots):
@@ -155,30 +221,28 @@ if __name__ == '__main__':
             pp = Planning_Problem(robot_initial_state_list[i], robot_desired_state_list[i], object_list, walls)
             planning_problem_list.append(pp)
 
-        velocities = ["random", "uniform", "gaussian"]
+        # velocities = ["random", "uniform", "gaussian"]
+        velocities = ["random"]
+        order_strategy = ["static", "random", "priority"]
         for vel in velocities:
-            # print(vel)
-            planner = Sequential_Planner()
-            planning_problem_list_copy = copy.deepcopy(planning_problem_list)
-            traj_list, traj_cost_list, traj_constr_list = planner.construct_traj_set(planning_problem_list_copy, vel)
-            dict_lengths[vel].append(sum(traj_constr_list))
-            dict_cost[vel].append(sum(traj_cost_list))
-        # cost_1 = traj_cost_list
+            for order in order_strategy:
+                # print(vel)
+                planner = Sequential_Planner()
+                planning_problem_list_copy = copy.deepcopy(planning_problem_list)
+                # traj_list, traj_cost_list, traj_constr_list = planner.construct_traj_set(planning_problem_list_copy, vel)
+                traj_list, traj_cost_list, traj_constr_list = planner.construct_optimized_traj_set(planning_problem_list_copy, vel, order)
+                dict_lengths[order].append(statistics.mean(traj_constr_list))
+                dict_cost[order].append(sum(traj_cost_list))
 
         print("after run #", j)
-        for vel in ["random", "uniform", "gaussian"]:
-            # print(dict_lengths[vel], type(dict_lengths[vel]))
+        # for vel in ["random", "uniform", "gaussian"]:
+        # for vel in ["random"]:
+        for vel in ["static", "random", "priority"]:
             print(vel, ": ", statistics.mean(dict_lengths[vel]), ", ", statistics.mean(dict_cost[vel]))
-            # print(vel, ": ", statistics.mean(dict_lengths[vel]))
 
-    # print("perf:", statistics.mean(cost_1))
-
-    print("PERFORMANCE:")
-    for vel in ["random", "uniform", "gaussian"]:
-        print(vel, ": ", statistics.mean(dict_lengths[vel]))
-    # print("1:", statistics.mean(count_1), statistics.mean(naive_count))
-    # print("2:", statistics.mean(weighted_cost), statistics.mean(weighted_count))
-    # print("5:", statistics.mean(weighted_cost), statistics.mean(weighted_count))
+    # print("PERFORMANCE:")
+    # for vel in ["random"]:
+    #     print(vel, ": ", statistics.mean(dict_lengths[vel]))
 
     # if len(traj_list) > 0:
     #     plot_traj_list(traj_list, object_list, walls)
