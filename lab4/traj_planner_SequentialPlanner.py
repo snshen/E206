@@ -110,6 +110,7 @@ if __name__ == '__main__':
     obj_vel = 1
 
     dict_lengths = {"uniform": [], "random": [], "gaussian": []}
+    dict_cost = {"uniform": [], "random": [], "gaussian": []}
     cost_1 = []
     # count_1 = []
     cost_2 = []
@@ -161,12 +162,14 @@ if __name__ == '__main__':
             planning_problem_list_copy = copy.deepcopy(planning_problem_list)
             traj_list, traj_cost_list, traj_constr_list = planner.construct_traj_set(planning_problem_list_copy, vel)
             dict_lengths[vel].append(sum(traj_constr_list))
+            dict_cost[vel].append(sum(traj_cost_list))
         # cost_1 = traj_cost_list
 
         print("after run #", j)
         for vel in ["random", "uniform", "gaussian"]:
             # print(dict_lengths[vel], type(dict_lengths[vel]))
-            print(vel, ": ", statistics.mean(dict_lengths[vel]))
+            print(vel, ": ", statistics.mean(dict_lengths[vel]), ", ", statistics.mean(dict_cost[vel]))
+            # print(vel, ": ", statistics.mean(dict_lengths[vel]))
 
     # print("perf:", statistics.mean(cost_1))
 
